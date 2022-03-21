@@ -18,6 +18,8 @@ const App = () => {
     const [domain, setDomain] = useState('');
     const [colour, setColour] = useState('');
   	const [network, setNetwork] = useState('');
+    const [editing, setEditing] = useState(false);
+    const [mints, setMints] = useState([]);
 
     const connectWallet = async () => {
       try {
@@ -116,9 +118,9 @@ const App = () => {
 
   	}
 
-  	const mintDomain = async () => {
+  	const mintPlanet = async () => {
     	// Don't run if the domain is empty
-    	if (!domain) { return }
+    	if (!domain || !colour) { return }
     	// Alert the user if the domain is too short
     	if (domain.length < 3) {
     		alert('Domain must be at least 3 characters long');
@@ -149,6 +151,11 @@ const App = () => {
     				await tx.wait();
     				console.log("Colour set! https://mumbai.polygonscan.com/tx/"+tx.hash);
 
+            // fetch mints after 2 seconds
+            setTimeout(() => {
+              fetchMints();
+            }, 2000);
+
             // Reset the state variables to refresh the UI
     				setColour('');
     				setDomain('');
@@ -163,6 +170,69 @@ const App = () => {
       }
     }
 
+    const fetchMints = async () => {
+    	try {
+    		const { ethereum } = window;
+    		if (ethereum) {
+    			// You know all this
+    			const provider = new ethers.providers.Web3Provider(ethereum);
+    			const signer = provider.getSigner();
+    			const contract = new ethers.Contract(CONTRACT_ADDRESS, contractAbi.abi, signer);
+
+    			const names = await contract.getAllPlanets();
+
+    			const mintRecords = await Promise.all(names.map(async (name) => {
+            const colour = await contract.colours(name);
+            const owner = await contract.planets(name);
+            return {
+              id: names.indexOf(name),
+              name: name,
+              colour: colour,
+              owner: owner,
+            };
+          }));
+
+          console.log("MINTS FETCHED ", mintRecords);
+          setMints(mintRecords);
+    		}
+    	} catch(error){
+    		console.log(error);
+    	}
+    }
+
+    // This will run any time currentAccount or network are changed
+    useEffect(() => {
+    	if (network === 'Polygon Mumbai Testnet') {
+    		fetchMints();
+    	}
+    }, [currentAccount, network]);
+
+
+    const updateColour = async () => {
+    	if (!colour || !domain) { return }
+    	setEditing(true);
+    	console.log("Updating planet", domain, "with colour", colour);
+      	try {
+          const { ethereum } = window;
+          if (ethereum) {
+            const provider = new ethers.providers.Web3Provider(ethereum);
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, contractAbi.abi, signer);
+
+            let tx = await contract.setColour(domain, colour);
+            await tx.wait();
+            console.log("Colour set https://mumbai.polygonscan.com/tx/"+tx.hash);
+
+            fetchMints();
+            setColour('');
+            setDomain('');
+          }
+      	} catch(error) {
+        	console.log(error);
+      	}
+    	setEditing(false);
+    }
+
   	const renderNotConnectedContainer = () => (
   		<div className="connect-wallet-container">
   			<img src="https://media.giphy.com/media/3o6Mbi33H758V6pJyo/giphy.gif" alt="Dog planet gif" />
@@ -170,7 +240,48 @@ const App = () => {
   				Connect Wallet
   			</button>
   		</div>
-    	);
+    );
+
+    const renderMints = () => {
+      if (currentAccount && mints.length > 0) {
+        return (
+          <div className="mint-container">
+            <p className="subtitle"> Recently minted planets!</p>
+            <div className="mint-list">
+              { mints.map((mint, index) => {
+                return (
+                  <div className="mint-item" key={index}>
+                    <div className='mint-row'>
+                      <a className="link" href={`https://testnets.opensea.io/assets/mumbai/${CONTRACT_ADDRESS}/${mint.id}`} target="_blank" rel="noopener noreferrer">
+                        <p className="underlined">{' '}{mint.name}{tld}{' '}</p>
+                      </a>
+                      {/* If mint.owner is currentAccount, add an "edit" button*/}
+                      { mint.owner.toLowerCase() === currentAccount.toLowerCase() ?
+                        <button className="edit-button" onClick={() => editRecord(mint.name)}>
+                          <img className="edit-icon" src="https://img.icons8.com/metro/26/000000/pencil.png" alt="Edit button" />
+                        </button>
+                        :
+                        null
+                      }
+                    </div>
+              <p> {mint.colour} </p>
+            </div>)
+            })}
+          </div>
+        </div>);
+      }
+    };
+
+    const editRecord = (name) => {
+      console.log("Editing record for", name);
+      setEditing(true);
+      setDomain(name);
+    }
+
+    const cancelEdit = () => {
+      setEditing(false);
+      setDomain('');
+    }
 
     // Form to enter domain name and data
     const renderInputForm = () => {
@@ -183,7 +294,6 @@ const App = () => {
 				  </div>
         );
       }
-
 
       return (
         <div className="form-container">
@@ -200,18 +310,24 @@ const App = () => {
           <input
             type="text"
             value={colour}
-            placeholder='what color is the planet?'
+            placeholder='what colour is the planet?'
             onChange={e => setColour(e.target.value)}
           />
 
-          <div className="button-container">
-            <button className='cta-button mint-button' disabled={null} onClick={mintDomain}>
+          {editing ? (
+            <div className="button-container">
+              <button className='cta-button mint-button' disabled={!editing} onClick={updateColour}>
+                Set Colour
+              </button>
+              <button className='cta-button mint-button' onClick={cancelEdit}>
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button className='cta-button mint-button' disabled={editing} onClick={mintPlanet}>
               Mint
             </button>
-            <button className='cta-button mint-button' disabled={null} onClick={null}>
-              Set data
-            </button>
-          </div>
+          )}
 
         </div>
       );
@@ -240,6 +356,7 @@ const App = () => {
 
 				{!currentAccount && renderNotConnectedContainer()}
 				{currentAccount && renderInputForm()}
+				{mints && renderMints()}
 
         <div className="footer-container">
 					<img alt="Twitter Logo" className="twitter-logo" src={twitterLogo} />
