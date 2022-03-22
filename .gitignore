@@ -26,9 +26,13 @@ yarn-error.log*
 package-lock.json
 
 # intellij files
-*.iml
-.idea/**
+**/*.iml
+.idea/
 
 # hardhat build dirs
 /artifacts
 /cache
+
+.pk
+.pem
+.pub
