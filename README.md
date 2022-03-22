@@ -3,7 +3,7 @@
 Project to practice building a smart contract handling domain name records, and interacting with the contract via a React
 front-end. See useful setup and deployment instructions below.
 
-![](/Users/andyshearer/Documents/dev/domain-starter/src/assets/screenshot.png "screenshot of project")
+![](src/assets/screenshot.png "screenshot of project")
 
 ### **Get Started 🎬**
 
