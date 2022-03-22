@@ -1,7 +1,11 @@
 # buildspace 🦄 DNS starter project
 ## Andromeda Galaxy Planet Naming Service 🪐
 Project to practice building a smart contract handling domain name records, and interacting with the contract via a React
-front-end. See useful setup and deployment instructions below.
+front-end.
+
+Try it out here! https://andromeda-naming-service.vercel.app/
+
+See useful setup and deployment instructions below.
 
 ![](src/assets/screenshot.png "screenshot of project")
 
