@@ -11,7 +11,7 @@ import { networks } from './utils/networks';
 const TWITTER_HANDLE = '_buildspace';
 const TWITTER_LINK = `https://twitter.com/${TWITTER_HANDLE}`;
 const tld = '.andromeda';
-const CONTRACT_ADDRESS = '0x17F6488f6f5Ea4e42f9ACcDF1C976E7f63Ad833d';
+const CONTRACT_ADDRESS = '0x76ab90eDecB8FB68509326e6D745821F7762B583';
 
 const App = () => {
     const [currentAccount, setCurrentAccount] = useState('')
@@ -116,7 +116,29 @@ const App = () => {
         window.location.reload();
       }
 
+      setupContractEventListeners();
   	}
+
+    const setupContractEventListeners = () => {
+     try {
+        const { ethereum } = window;
+        if (ethereum) {
+          const provider = new ethers.providers.Web3Provider(ethereum);
+          const signer = provider.getSigner();
+          const contract = new ethers.Contract(CONTRACT_ADDRESS, contractAbi.abi, signer);
+
+          contract.on("Mint", (name, minter) => {
+              console.log(`New planet '${name}' minted by ${minter}`);
+          });
+
+          contract.on("Recolour", (name, colour, user) => {
+              console.log(`'${name}' has been recoloured by ${user} to '${colour}'`);
+          });
+        }
+     } catch(error) {
+        console.log(error);
+      }
+    }
 
   	const mintPlanet = async () => {
     	// Don't run if the domain is empty
@@ -144,12 +166,9 @@ const App = () => {
 
     			// Check if the transaction was successfully completed
     			if (receipt.status === 1) {
-    				console.log("Domain minted! https://mumbai.polygonscan.com/tx/"+tx.hash);
-
     				// Set the colour for the domain
     				tx = await contract.setColour(domain, colour);
     				await tx.wait();
-    				console.log("Colour set! https://mumbai.polygonscan.com/tx/"+tx.hash);
 
             // fetch mints after 2 seconds
             setTimeout(() => {
@@ -221,7 +240,6 @@ const App = () => {
 
             let tx = await contract.setColour(domain, colour);
             await tx.wait();
-            console.log("Colour set https://mumbai.polygonscan.com/tx/"+tx.hash);
 
             fetchMints();
             setColour('');
